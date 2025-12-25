@@ -221,7 +221,8 @@ int main() {
     int psxver = open("rom0:PSXVER", O_RDONLY);
     if (psxver >= 0) {
         printf("DESR PS2: it is recommended to set LK_Auto_E1 to something like wLaunchELF or OPL\n");
-        scr_printf("DESR PS2: it is recommended to set LK_Auto_E1 to something like wLaunchELF or OPL\n");
+        scr_printf("DESR PS2: it is recommended to set LK_Auto_E1 to something like wLaunchELF\n");
+        scr_printf("or OPL")
         close(psxver);
     }
     // DESR check end //
@@ -305,6 +306,7 @@ int main() {
     return 0;
 
 }
+
 
 
 
