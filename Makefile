@@ -95,7 +95,3 @@ $(ROMVERCHK_SASDEST): $(PACKED_BIN)
 
 include $(PS2SDK)/samples/Makefile.pref
 include $(PS2SDK)/samples/Makefile.eeglobal
-
-
-include $(PS2SDK)/samples/Makefile.pref
-include $(PS2SDK)/samples/Makefile.eeglobal
