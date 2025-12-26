@@ -56,5 +56,3 @@ jobs:
           files: |
             romverchecker.elf
             romverchecker_pkd.elf
-            romverchecker_r4d.elf
-            romverchecker_r4d_pkd.elf
