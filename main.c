@@ -46,6 +46,7 @@ char* ConsoleROMVER = romver_buf;
 char buffer[256];
 size_t total_read = 0;
 
+
 void reload_modules_withiopreset() {
     SifIopReset("", 0);
     SifIopSync();
@@ -53,6 +54,10 @@ void reload_modules_withiopreset() {
     sbv_patch_disable_prefix_check();
     sbv_patch_enable_lmb();
     sio_puts("SBV patches loaded");
+    SifLoadModule("host:/sio2man.irx", 0, NULL);
+    SifLoadModule("host:/mcman.irx", 0, NULL);
+    SifLoadModule("host:/mcserv.irx", 0, NULL);
+    SifLoadModule("host:/padman.irx", 0, NULL);
     int ret;
     ret = SifExecModuleBuffer(sio2man_irx, size_sio2man_irx, 0, NULL, NULL);
     if (ret < 0) {
@@ -179,13 +184,14 @@ int main() {
 #ifdef R4D
     printf("ROM Version Checker for R4D\n");
     scr_printf("ROM Version Checker for R4D\n");
+
 #else
     printf("ROM Version Checker\n");
     scr_printf("ROM Version Checker\n");
+
 #endif
-    printf("by slimpuggamer");
-    scr_printf("by slimpuggamer");
-    scr_printf("\n");
+    printf("by slimpuggamer\n");
+    scr_printf("by slimpuggamer\n");
     scr_printf("\n");
     printf("\n");
     printf("ROMVER: %s\n", romver_buf);
@@ -351,28 +357,24 @@ int main() {
     struct padButtonStatus padinfo;
     printf("Press X to exit\n");
     scr_printf("Press X to exit\n");
-
-    while (1) {
+    for (;;) {
         size_t bytes_read = sio_read(buffer + total_read, sizeof(buffer) - total_read - 1);
         if (bytes_read > 0) {
             total_read += bytes_read;
             buffer[total_read] = '\0';
-            if (strstr(buffer, "help") != NULL) {
+
+            if (strstr(buffer, "help")) {
                 printf("Commands:\nrecheck - runs checks again\nreset - exits to BOOT.ELF or OSDSYS\n");
                 total_read = 0;
                 memset(buffer, 0, sizeof(buffer));
             }
-            if (strstr(buffer, "recheck") != NULL) {
+            if (strstr(buffer, "recheck")) {
+                total_read = 0;
+                memset(buffer, 0, sizeof(buffer));
                 scr_clear();
-                goto checks;
-                total_read = 0;
-                memset(buffer, 0, sizeof(buffer));
+                goto checks; // buffer now cleared before jump
             }
-            if (strstr(buffer, "reset") != NULL) {
-                printf("Exiting to OSDSYS\n");
-                scr_printf("Exiting to OSDSYS\n");
-                total_read = 0;
-                memset(buffer, 0, sizeof(buffer));
+            if (strstr(buffer, "reset")) {
                 if (bootelffound >= 0) {
                     close(bootelffound);
                     LoadELFFromFile("mc0:/BOOT/BOOT.ELF", 0, NULL);
@@ -389,17 +391,10 @@ int main() {
                 }
             }
         }
-        usleep(16000);
-    }
-
-    for (;;) {
         for (int port = 0; port < 2; port++) {
             if (padGetState(port, 0) == PAD_STATE_STABLE) {
                 if (padRead(port, 0, &padinfo) > 0) {
                     if (!(padinfo.btns & PAD_CROSS)) {
-                        printf("Exiting to OSDSYS\n");
-                        scr_printf("Exiting to OSDSYS\n");
-                        // bit of a hack for OpenTuna users so they don't need to re-exploit after exit
                         if (bootelffound >= 0) {
                             close(bootelffound);
                             LoadELFFromFile("mc0:/BOOT/BOOT.ELF", 0, NULL);
@@ -414,17 +409,14 @@ int main() {
                                 LoadELFFromFile("rom0:OSDSYS", 0, NULL);
                             }
                         }
-
-                        return 0;
                     }
                 }
             }
         }
+
         usleep(16000);
     }
-
     return 0;
-
 }
 
 
