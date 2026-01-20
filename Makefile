@@ -7,10 +7,10 @@ ARCADE_TARGET_PACKED = romverchecker_arcade_pkd
 R4D_ARCADE_TARGET = romverchecker_r4d_arcade
 R4D_ARCADE_TARGET_PACKED = romverchecker_r4d_arcade_pkd
 ROMVERCHK_SASDEST = SAS/DST_ROMVERCHK/ROMVERCHK.ELF
-EE_OBJS = main.o ps2dev9.o udptty_standalone.o modelname.o
-EE_OBJS_R4D = main_r4d.o ps2dev9.o udptty_standalone.o modelname.o
-EE_OBJS_ARCADE = main_arcade.o ps2dev9.o udptty_standalone.o IOPRP_FILEIO.o modelname.o
-EE_OBJS_R4D_ARCADE = main_r4d_arcade.o ps2dev9.o udptty_standalone.o IOPRP_FILEIO.o modelname.o 
+EE_OBJS = main.o ps2dev9.o ppctty.o udptty_standalone.o sio2man.o mcman.o mcserv.o padman.o modelname.o
+EE_OBJS_R4D = main_r4d.o ppctty.o ps2dev9.o udptty_standalone.o sio2man.o mcman.o mcserv.o padman.o modelname.o
+EE_OBJS_ARCADE = main_arcade.o ppctty.o ps2dev9.o udptty_standalone.o sio2man.o mcman.o mcserv.o acdev9.o padman.o IOPRP_FILEIO.o modelname.o
+EE_OBJS_R4D_ARCADE = main_r4d_arcade.o ppctty.o ps2dev9.o udptty_standalone.o sio2man.o mcman.o mcserv.o acdev9.o padman.o IOPRP_FILEIO.o modelname.o 
 EE_BIN = $(TARGET).elf
 EE_BIN_R4D = $(R4D_TARGET).elf
 EE_BIN_ARCADE = $(ARCADE_TARGET).elf
@@ -24,7 +24,7 @@ EE_LDFLAGS += -Wl,--gc-sections
 CFLAGS_R4D = $(EE_CFLAGS) -DR4D $(EE_INCS)
 CFLAGS_ARCADE = $(EE_CFLAGS) -DARCADE $(EE_INCS)
 CFLAGS_R4D_ARCADE = $(EE_CFLAGS) -DR4D -DARCADE $(EE_INCS)
-EE_LIBS_COMMON = -ldebug -lfileXio -lkernel -lelf-loader -lpatches -lps2ips -lmc -lxcdvd
+EE_LIBS_COMMON = -lc -ldebug -lfileXio -lkernel -lelf-loader -lpatches -lps2ips -lmc -lxcdvd
 EE_LIBS = $(EE_LIBS_COMMON) -lpad
 EE_LIBS_ARCADE = $(EE_LIBS_COMMON) -lpadx
 EE_LIBS_R4D_ARCADE = $(EE_LIBS_COMMON) -lpadx
@@ -51,7 +51,7 @@ clean:
 	$(DIR_GUARD)
 	$(EE_CC) $(CFLAGS_R4D_ARCADE) -c $< -o $@
 
-IOPRP_FILEIO.c: IOPRP_FILEIO.IMG
+IOPRP_FILEIO.c: extra/IOPRP_FILEIO.IMG
 	$(PS2SDK)/bin/bin2c $< $@ ioprp
 
 IOPRP_FILEIO.o: IOPRP_FILEIO.c
@@ -62,6 +62,24 @@ $(EE_ASM_DIR)ps2dev9.c: $(PS2SDK)/iop/irx/ps2dev9.irx | $(EE_ASM_DIR)
 	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
 
 $(EE_ASM_DIR)udptty_standalone.c: extra/udptty_standalone.irx | $(EE_ASM_DIR)
+	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
+
+$(EE_ASM_DIR)ppctty.c: $(PS2SDK)/iop/irx/ppctty.irx | $(EE_ASM_DIR)
+	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
+
+$(EE_ASM_DIR)acdev9.c: $(PS2SDK)/iop/irx/acdev9.irx | $(EE_ASM_DIR)
+	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
+
+$(EE_ASM_DIR)sio2man.c: $(PS2SDK)/iop/irx/sio2man.irx | $(EE_ASM_DIR)
+	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
+
+$(EE_ASM_DIR)mcman.c: $(PS2SDK)/iop/irx/mcman.irx | $(EE_ASM_DIR)
+	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
+
+$(EE_ASM_DIR)mcserv.c: $(PS2SDK)/iop/irx/mcserv.irx | $(EE_ASM_DIR)
+	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
+
+$(EE_ASM_DIR)padman.c: $(PS2SDK)/iop/irx/padman.irx | $(EE_ASM_DIR)
 	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
 
 $(EE_BIN_R4D): $(EE_OBJS_R4D)
