@@ -364,7 +364,7 @@ int main() {
             buffer[total_read] = '\0';
 
             if (strstr(buffer, "help")) {
-                printf("Commands:\nrecheck - runs checks again\nreset - exits to BOOT.ELF or OSDSYS\n");
+                sio_puts("Commands:\nrecheck - runs checks again\nreset - exits to BOOT.ELF or OSDSYS\n");
                 total_read = 0;
                 memset(buffer, 0, sizeof(buffer));
             }
@@ -418,5 +418,6 @@ int main() {
     }
     return 0;
 }
+
 
 
