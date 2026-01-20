@@ -16,24 +16,60 @@
 #include <iopcontrol_special.h>
 #include "modelname.h"
 #include <libcdvd-common.h>
+#include <sio.h>
+#include <ctype.h>
+#include <iop_regs.h>
 
+// error code list
+// 0x54 - ENOENT
+// 0x4F - EIO
 extern unsigned char ps2dev9_irx[];
 extern unsigned int size_ps2dev9_irx;
+extern unsigned char ppctty_irx[];
+extern unsigned int size_ppctty_irx;
 extern unsigned char udptty_standalone_irx[];
 extern unsigned int size_udptty_standalone_irx;
+extern unsigned char sio2man_irx[];
+extern unsigned int  size_sio2man_irx;
+extern unsigned char mcman_irx[];
+extern unsigned int  size_mcman_irx;
+extern unsigned char mcserv_irx[];
+extern unsigned int  size_mcserv_irx;
+extern unsigned char acdev9_irx[];
+extern unsigned int size_acdev9_irx;
+extern unsigned char padman_irx[];
+extern unsigned int size_padman_irx;
 extern unsigned char ioprp[];
 extern unsigned int size_ioprp;
 char romver_buf[16] = { 0 };
 char* ConsoleROMVER = romver_buf;
+char buffer[256];
+size_t total_read = 0;
 
 void reload_modules_withiopreset() {
     SifIopReset("", 0);
     SifIopSync();
     SifInitRpc(0);
-    SifLoadModule("rom0:SIO2MAN", 0, NULL);
-    SifLoadModule("rom0:MCMAN", 0, NULL);
     sbv_patch_disable_prefix_check();
     sbv_patch_enable_lmb();
+    sio_puts("SBV patches loaded");
+    int ret;
+    ret = SifExecModuleBuffer(sio2man_irx, size_sio2man_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load sio2man.irx: %d\n", ret);
+    }
+    ret = SifExecModuleBuffer(mcman_irx, size_mcman_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load mcman.irx: %d\n", ret);
+    }
+    ret = SifExecModuleBuffer(mcserv_irx, size_mcserv_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load mcserv.irx: %d\n", ret);
+    }
+    ret = SifExecModuleBuffer(padman_irx, size_padman_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load padman.irx: %d\n", ret);
+    }
     scr_printf("Loading required modules\n");
     printf("Loading required modules\n");
 }
@@ -41,17 +77,35 @@ void reload_modules_withiopreset() {
 void loadextramodules() {
     scr_printf("Loading extra modules\n");
     printf("Loading extra modules\n");
+    SifLoadModule("host:/ps2dev9.irx", 0, NULL);
+    SifLoadModule("host:/udptty_standalone.irx", 0, NULL);
+    SifLoadModule("host:/ppctty.irx", 0, NULL);
     int ret;
+#ifdef ARCADE
+    ret = SifExecModuleBuffer(acdev9_irx, size_acdev9_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load acdev9.irx: %d\n", ret);
+    }
+#else
     ret = SifExecModuleBuffer(ps2dev9_irx, size_ps2dev9_irx, 0, NULL, NULL);
     if (ret < 0) {
         printf("Failed to load ps2dev9.irx: %d\n", ret);
     }
-
-
+#endif
     ret = SifExecModuleBuffer(udptty_standalone_irx, size_udptty_standalone_irx, 0, NULL, NULL);
     if (ret < 0) {
         printf("Failed to load udptty_standalone.irx (err %d)\n", ret);
     }
+    if (IOP_CPU_TYPE == IOP_TYPE_MIPSR3000) {
+        sio_puts("this is a PGIF PS2 or PCSX2 so skipping ppctty");
+    }
+    if (IOP_CPU_TYPE == IOP_TYPE_POWERPC) {
+        ret = SifExecModuleBuffer(ppctty_irx, size_ppctty_irx, 0, NULL, NULL);
+        if (ret < 0) {
+            printf("Failed to load ppctty.irx (err %d)\n", ret);
+        }
+    }
+
 }
 
 int main() {
@@ -74,26 +128,40 @@ int main() {
     }
 #endif
     SifInitRpc(0);
-    SifLoadModule("rom0:SIO2MAN", 0, NULL);
-    SifLoadModule("rom0:MCMAN", 0, NULL);
-    SifLoadModule("rom0:MCSERV", 0, NULL);
+    int ret;
+    ret = SifExecModuleBuffer(sio2man_irx, size_sio2man_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load sio2man.irx: %d\n", ret);
+    }
+    ret = SifExecModuleBuffer(mcman_irx, size_mcman_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load mcman.irx: %d\n", ret);
+    }
+    ret = SifExecModuleBuffer(mcserv_irx, size_mcserv_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load mcserv.irx: %d\n", ret);
+    }
     printf("setting MC type to MC_TYPE_XMC\n");
     mcInit(MC_TYPE_XMC);
     SifLoadModule("rom0:DAEMON", 0, NULL);
-    int ret = SifLoadModule("mc0:/ACJVLOAD.irx", 0, NULL);
+    ret = SifLoadModule("mc0:/ACJVLOAD.irx", 0, NULL);
     if (ret < 0) {
         printf("Failed to load ACJVLOAD (err %d)\n", ret);
+    }
+    ret = SifExecModuleBuffer(padman_irx, size_padman_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load padman.irx: %d\n", ret);
     }
 #endif
     // patch end
     init_scr();
     scr_setCursor(0);
     loadextramodules();
-
+    checks:
     int romfd = open("rom0:ROMVER", O_RDONLY);
     if (romfd < 0) {
-        printf("Failed to open rom0:ROMVER\n");
-        scr_printf("Failed to open rom0:ROMVER\n");
+        printf("Failed to open rom0:ROMVER (0x54)\n");
+        scr_printf("Failed to open rom0:ROMVER (0x54)\n");
         while (1) asm("nop");
     }
 
@@ -101,8 +169,8 @@ int main() {
     close(romfd);
 
     if (bytes <= 0) {
-        printf("Failed to read rom0:ROMVER\n");
-        scr_printf("Failed to read rom0:ROMVER\n");
+        printf("Failed to read rom0:ROMVER (0x4F)\n");
+        scr_printf("Failed to read rom0:ROMVER (0x4F)\n");
         while (1) asm("nop");
     }
     scr_clear();
@@ -159,7 +227,7 @@ int main() {
     char* r = strchr("AECJT", romver_buf[4]);
     printf("Region: %s\n", r ? (r[0] == 'A' ? "America" : r[0] == 'E' ? "Europe" : r[0] == 'C' ? "China" : r[0] == 'J' ? "Japan" : "TOOL") : "Unknown");
     scr_printf("Region: %s\n", r ? (r[0] == 'A' ? "America" : r[0] == 'E' ? "Europe" : r[0] == 'C' ? "China" : r[0] == 'J' ? "Japan" : "TOOL") : "Unknown");
-    
+
 #if ARCADE
 #else
     ModelNameInit();
@@ -173,7 +241,7 @@ int main() {
         fd = open("mc1:/SYS-CONF/PS2BBL.INI", O_RDONLY);
     }
 
-    if (fd >= 0) {
+    if (fd >= 0) { // PS2BBL
         printf("PS2BBL installed: yes\n");
         scr_printf("PS2BBL installed: yes\n");
         close(fd);
@@ -184,16 +252,29 @@ int main() {
             fd = open("mc1:/SYS-CONF/FREEMCB.CNF", O_RDONLY);
         }
 
-        if (fd < 0) {
-            printf("FMCB installed: no\n");
-            scr_printf("FMCB installed: no\n");
-        }
-        else {
+        if (fd >= 0) {  // FMCB
             printf("FMCB installed: yes\n");
             scr_printf("FMCB installed: yes\n");
             close(fd);
         }
+        else {  // FunTuna?
+            fd = open("mc0:/BOOT/FREEMCB.CNF", O_RDONLY);
+            if (fd < 0) {
+                fd = open("mc1:/BOOT/FREEMCB.CNF", O_RDONLY);
+            }
+
+            if (fd >= 0) {
+                printf("FunTuna installed: yes\n");
+                scr_printf("FunTuna installed: yes\n");
+                close(fd);
+            }
+            else {
+                printf("FunTuna installed: no\n");
+                scr_printf("FunTuna installed: no\n");
+            }
+        }
     }
+    
     if (is_dex) {
         printf("MechaPwnable: no\n");
         scr_printf("MechaPwnable: no\n");
@@ -222,7 +303,7 @@ int main() {
     if (psxver >= 0) {
         printf("DESR PS2: it is recommended to set LK_Auto_E1 to something like wLaunchELF or OPL\n");
         scr_printf("DESR PS2: it is recommended to set LK_Auto_E1 to something like wLaunchELF\n");
-        scr_printf("or OPL");
+        scr_printf("or OPL\n");
         close(psxver);
     }
     // DESR check end //
@@ -260,7 +341,7 @@ int main() {
     //sleep(120);
     //LoadELFFromFile("rom0:OSDSYS", 0, NULL);
     //return 0;
-    SifLoadModule("rom0:PADMAN", 0, NULL);
+
     padInit(0);
     static char padBuf[2][256] __attribute__((aligned(64)));
     for (int port = 0; port < 2; port++) {
@@ -271,6 +352,45 @@ int main() {
     printf("Press X to exit\n");
     scr_printf("Press X to exit\n");
 
+    while (1) {
+        size_t bytes_read = sio_read(buffer + total_read, sizeof(buffer) - total_read - 1);
+        if (bytes_read > 0) {
+            total_read += bytes_read;
+            buffer[total_read] = '\0';
+            if (strstr(buffer, "help") != NULL) {
+                printf("Commands:\nrecheck - runs checks again\nreset - exits to BOOT.ELF or OSDSYS\n");
+                total_read = 0;
+                memset(buffer, 0, sizeof(buffer));
+            }
+            if (strstr(buffer, "recheck") != NULL) {
+                scr_clear();
+                goto checks;
+                total_read = 0;
+                memset(buffer, 0, sizeof(buffer));
+            }
+            if (strstr(buffer, "reset") != NULL) {
+                printf("Exiting to OSDSYS\n");
+                scr_printf("Exiting to OSDSYS\n");
+                total_read = 0;
+                memset(buffer, 0, sizeof(buffer));
+                if (bootelffound >= 0) {
+                    close(bootelffound);
+                    LoadELFFromFile("mc0:/BOOT/BOOT.ELF", 0, NULL);
+                }
+                else {
+                    bootelffound = open("mc1:/BOOT/BOOT.ELF", O_RDONLY);
+                    if (bootelffound >= 0) {
+                        close(bootelffound);
+                        LoadELFFromFile("mc1:/BOOT/BOOT.ELF", 0, NULL);
+                    }
+                    else {
+                        LoadELFFromFile("rom0:OSDSYS", 0, NULL);
+                    }
+                }
+            }
+        }
+        usleep(16000);
+    }
 
     for (;;) {
         for (int port = 0; port < 2; port++) {
@@ -306,8 +426,5 @@ int main() {
     return 0;
 
 }
-
-
-
 
 
