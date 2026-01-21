@@ -380,7 +380,7 @@ int main() {
                 total_read = 0;
                 memset(buffer, 0, sizeof(buffer));
                 scr_clear();
-                goto checks; // buffer now cleared before jump
+                goto checks;
             }
             if (strstr(buffer, "reset")) {
                 if (bootelffound >= 0) {
@@ -426,5 +426,6 @@ int main() {
     }
     return 0;
 }
+
 
 
