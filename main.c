@@ -19,6 +19,7 @@
 #include <sio.h>
 #include <ctype.h>
 #include <iop_regs.h>
+#include <SIOCookie.h>
 
 // error code list
 // 0x54 - ENOENT
@@ -45,7 +46,6 @@ char romver_buf[16] = { 0 };
 char* ConsoleROMVER = romver_buf;
 char buffer[256];
 size_t total_read = 0;
-
 
 void reload_modules_withiopreset() {
     SifIopReset("", 0);
@@ -115,6 +115,8 @@ void loadextramodules() {
 
 int main() {
     SifInitRpc(0);
+    ee_sio_start(38400, 0, 0, 0, 0, 1);
+    setvbuf(stdout, NULL, _IONBF, 0);
     //patch for OSDMenu
     reload_modules_withiopreset();
 
@@ -182,16 +184,22 @@ int main() {
     // patch for screens with overscan
     scr_printf("\n");
 #ifdef R4D
+    printf("==============================================\n");
     printf("ROM Version Checker for R4D\n");
+    scr_printf("==============================================\n");
     scr_printf("ROM Version Checker for R4D\n");
 
 #else
+    printf("==============================================\n");
     printf("ROM Version Checker\n");
+    scr_printf("==============================================\n");
     scr_printf("ROM Version Checker\n");
 
 #endif
     printf("by slimpuggamer\n");
     scr_printf("by slimpuggamer\n");
+    printf("==============================================\n");
+    scr_printf("==============================================\n");
     scr_printf("\n");
     printf("\n");
     printf("ROMVER: %s\n", romver_buf);
@@ -418,6 +426,5 @@ int main() {
     }
     return 0;
 }
-
 
 
