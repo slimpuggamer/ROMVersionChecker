@@ -54,10 +54,6 @@ void reload_modules_withiopreset() {
     sbv_patch_disable_prefix_check();
     sbv_patch_enable_lmb();
     sio_puts("SBV patches loaded");
-    SifLoadModule("host:/sio2man.irx", 0, NULL);
-    SifLoadModule("host:/mcman.irx", 0, NULL);
-    SifLoadModule("host:/mcserv.irx", 0, NULL);
-    SifLoadModule("host:/padman.irx", 0, NULL);
     int ret;
     ret = SifExecModuleBuffer(sio2man_irx, size_sio2man_irx, 0, NULL, NULL);
     if (ret < 0) {
@@ -82,9 +78,6 @@ void reload_modules_withiopreset() {
 void loadextramodules() {
     scr_printf("Loading extra modules\n");
     printf("Loading extra modules\n");
-    SifLoadModule("host:/ps2dev9.irx", 0, NULL);
-    SifLoadModule("host:/udptty_standalone.irx", 0, NULL);
-    SifLoadModule("host:/ppctty.irx", 0, NULL);
     int ret;
 #ifdef ARCADE
     ret = SifExecModuleBuffer(acdev9_irx, size_acdev9_irx, 0, NULL, NULL);
