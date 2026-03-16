@@ -173,6 +173,11 @@ int main() {
         scr_printf("Failed to read rom0:ROMVER (0x4F)\n");
         while (1) asm("nop");
     }
+    if (bytes < 6) {
+        printf("Failed to read rom0:ROMVER (0x4F)\n");
+        scr_printf("Failed to read rom0:ROMVER (0x4F)\n");
+        while (1) asm("nop");
+    }
     scr_clear();
     // patch for screens with overscan
     scr_printf("\n");
