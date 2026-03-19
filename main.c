@@ -363,40 +363,43 @@ int main() {
     struct padButtonStatus padinfo;
     printf("Press X to exit\n");
     scr_printf("Press X to exit\n");
-    for (;;) {
-        size_t bytes_read = sio_read(buffer + total_read, sizeof(buffer) - total_read - 1);
-        if (bytes_read > 0) {
-            total_read += bytes_read;
-            buffer[total_read] = '\0';
+for (;;) {
+    size_t bytes_read = sio_read(buffer + total_read, sizeof(buffer) - total_read - 1);
+    if (bytes_read > 0) {
+        if (total_read + bytes_read >= sizeof(buffer)) {
+            bytes_read = sizeof(buffer) - total_read - 1;
+        }
+        total_read += bytes_read;
+        buffer[total_read] = '\0';
 
-            if (strstr(buffer, "help")) {
-                sio_puts("Commands:\nrecheck - runs checks again\nreset - exits to BOOT.ELF or OSDSYS\n");
-                total_read = 0;
-                memset(buffer, 0, sizeof(buffer));
+        if (strstr(buffer, "help")) {
+            sio_puts("Commands:\nrecheck - runs checks again\nreset - exits to BOOT.ELF or OSDSYS\n");
+            total_read = 0;
+            memset(buffer, 0, sizeof(buffer));
+        }
+        if (strstr(buffer, "recheck")) {
+            total_read = 0;
+            memset(buffer, 0, sizeof(buffer));
+            scr_clear();
+            goto checks;
+        }
+        if (strstr(buffer, "reset")) {
+            if (bootelffound >= 0) {
+                close(bootelffound);
+                LoadELFFromFile("mc0:/BOOT/BOOT.ELF", 0, NULL);
             }
-            if (strstr(buffer, "recheck")) {
-                total_read = 0;
-                memset(buffer, 0, sizeof(buffer));
-                scr_clear();
-                goto checks;
-            }
-            if (strstr(buffer, "reset")) {
+            else {
+                bootelffound = open("mc1:/BOOT/BOOT.ELF", O_RDONLY);
                 if (bootelffound >= 0) {
                     close(bootelffound);
-                    LoadELFFromFile("mc0:/BOOT/BOOT.ELF", 0, NULL);
+                    LoadELFFromFile("mc1:/BOOT/BOOT.ELF", 0, NULL);
                 }
                 else {
-                    bootelffound = open("mc1:/BOOT/BOOT.ELF", O_RDONLY);
-                    if (bootelffound >= 0) {
-                        close(bootelffound);
-                        LoadELFFromFile("mc1:/BOOT/BOOT.ELF", 0, NULL);
-                    }
-                    else {
-                        LoadELFFromFile("rom0:OSDSYS", 0, NULL);
-                    }
+                    LoadELFFromFile("rom0:OSDSYS", 0, NULL);
                 }
             }
         }
+    }
         for (int port = 0; port < 2; port++) {
             if (padGetState(port, 0) == PAD_STATE_STABLE) {
                 if (padRead(port, 0, &padinfo) > 0) {
