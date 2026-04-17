@@ -52,7 +52,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          title: ROMVersionChecker nightly test builds
+          name: ROMVersionChecker nightly test builds
           files: |
             romverchecker.elf
             romverchecker_pkd.elf
