@@ -241,6 +241,7 @@ int main() {
     scr_printf("Region: %s\n", r ? (r[0] == 'A' ? "America" : r[0] == 'E' ? "Europe" : r[0] == 'C' ? "China" : r[0] == 'J' ? "Japan" : "TOOL") : "Unknown");
 
 #if ARCADE
+    // stub due to Arcade not having a way to pull model
 #else
     ModelNameInit();
     const char* model = ModelNameGet();
@@ -269,21 +270,24 @@ int main() {
             scr_printf("FMCB installed: yes\n");
             close(fd);
         }
-        else {  // FunTuna?
-            fd = open("mc0:/BOOT/FREEMCB.CNF", O_RDONLY);
+        fd = open("mc0:/BOOT/FREEMCB.CNF", O_RDONLY); // FunTuna?
+        if (fd < 0) {
+            fd = open("mc1:/BOOT/FREEMCB.CNF", O_RDONLY);
+        }
+        if (fd < 0) {
+            fd = open("mc0:/BOOT/FUNTUNA.CNF", O_RDONLY);
             if (fd < 0) {
-                fd = open("mc1:/BOOT/FREEMCB.CNF", O_RDONLY);
-            }
-
-            if (fd >= 0) {
-                printf("FunTuna installed: yes\n");
-                scr_printf("FunTuna installed: yes\n");
-                close(fd);
-            }
-            else {
-                printf("FunTuna installed: no\n");
-                scr_printf("FunTuna installed: no\n");
-            }
+                fd = open("mc1:/BOOT/FUNTUNA.CNF", O_RDONLY);
+        } 
+    }
+        if (fd >= 0) {
+            printf("FunTuna installed: yes\n");
+            scr_printf("FunTuna installed: yes\n");
+            close(fd);
+        }
+        else {
+            printf("FunTuna installed: no\n");
+            scr_printf("FunTuna installed: no\n");
         }
     }
     
