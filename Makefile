@@ -7,10 +7,10 @@ ARCADE_TARGET_PACKED = romverchecker_arcade_pkd
 R4D_ARCADE_TARGET = romverchecker_r4d_arcade
 R4D_ARCADE_TARGET_PACKED = romverchecker_r4d_arcade_pkd
 ROMVERCHK_SASDEST = SAS/DST_ROMVERCHK/ROMVERCHK.ELF
-EE_OBJS = main.o ps2dev9.o ppctty.o udptty_standalone.o sio2man.o mcman.o mcserv.o padman.o modelname.o
-EE_OBJS_R4D = main_r4d.o ppctty.o ps2dev9.o udptty_standalone.o sio2man.o mcman.o mcserv.o padman.o modelname.o
-EE_OBJS_ARCADE = main_arcade.o ppctty.o ps2dev9.o udptty_standalone.o sio2man.o mcman.o mcserv.o acdev9.o padman.o IOPRP_FILEIO.o modelname.o
-EE_OBJS_R4D_ARCADE = main_r4d_arcade.o ppctty.o ps2dev9.o udptty_standalone.o sio2man.o mcman.o mcserv.o acdev9.o padman.o IOPRP_FILEIO.o modelname.o 
+EE_OBJS = main.o ps2dev9.o netman.o smap.o ps2ip_nm.o ppctty.o udptty_standalone.o sio2man.o mcman.o mcserv.o padman.o modelname.o
+EE_OBJS_R4D = main_r4d.o netman.o ps2ip_nm.o smap.o  ppctty.o ps2dev9.o udptty_standalone.o sio2man.o mcman.o mcserv.o padman.o modelname.o
+EE_OBJS_ARCADE = main_arcade.o netman.o ps2ip_nm.o smap.o  ppctty.o ps2dev9.o udptty_standalone.o sio2man.o mcman.o mcserv.o acdev9.o padman.o IOPRP_FILEIO.o modelname.o
+EE_OBJS_R4D_ARCADE = main_r4d_arcade.o netman.o smap.o  ps2ip_nm.o ppctty.o ps2dev9.o udptty_standalone.o sio2man.o mcman.o mcserv.o acdev9.o padman.o IOPRP_FILEIO.o modelname.o 
 EE_BIN = $(TARGET).elf
 EE_BIN_R4D = $(R4D_TARGET).elf
 EE_BIN_ARCADE = $(ARCADE_TARGET).elf
@@ -59,6 +59,15 @@ IOPRP_FILEIO.o: IOPRP_FILEIO.c
 
 
 $(EE_ASM_DIR)ps2dev9.c: $(PS2SDK)/iop/irx/ps2dev9.irx | $(EE_ASM_DIR)
+	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
+
+$(EE_ASM_DIR)netman.c: $(PS2SDK)/iop/irx/netman.irx | $(EE_ASM_DIR)
+	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
+
+$(EE_ASM_DIR)smap.c: $(PS2SDK)/iop/irx/smap.irx | $(EE_ASM_DIR)
+	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
+
+$(EE_ASM_DIR)ps2ip_nm.c: $(PS2SDK)/iop/irx/ps2ip-nm.irx | $(EE_ASM_DIR)
 	/usr/local/ps2dev/ps2sdk/bin/bin2c $< $@ $(*F)_irx
 
 $(EE_ASM_DIR)udptty_standalone.c: extra/udptty_standalone.irx | $(EE_ASM_DIR)
