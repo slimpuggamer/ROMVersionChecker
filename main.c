@@ -13,6 +13,7 @@
 #include <elf-loader.h>
 #include <libpad.h>
 #include <libmc.h>
+#include <malloc.h>
 #include <iopcontrol_special.h>
 #include "modelname.h"
 #include <libcdvd-common.h>
@@ -24,8 +25,16 @@
 // error code list
 // 0x54 - ENOENT
 // 0x4F - EIO
+
+// embedded stuff
 extern unsigned char ps2dev9_irx[];
 extern unsigned int size_ps2dev9_irx;
+extern unsigned char ps2ip_nm_irx[];
+extern unsigned int size_ps2ip_nm_irx;
+extern unsigned char netman_irx[];
+extern unsigned int size_netman_irx;
+extern unsigned char smap_irx[];
+extern unsigned int size_smap_irx;
 extern unsigned char ppctty_irx[];
 extern unsigned int size_ppctty_irx;
 extern unsigned char udptty_standalone_irx[];
@@ -42,10 +51,66 @@ extern unsigned char padman_irx[];
 extern unsigned int size_padman_irx;
 extern unsigned char ioprp[];
 extern unsigned int size_ioprp;
+// chars
+char nt[48], ip[16] = "192.168.8.2", mask[16] = "255.255.255.0", gw[16] = "192.168.8.1";
 char romver_buf[16] = { 0 };
 char* ConsoleROMVER = romver_buf;
 char buffer[256];
 size_t total_read = 0;
+
+void extrachecks(int version_num, int is_dex, int is_protkrnl) {
+    if (is_dex) {
+        printf("MechaPwnable: no\n");
+        scr_printf("MechaPwnable: no\n");
+    }
+    else if (version_num >= 170) {
+        printf("MechaPwnable: yes\n");
+        scr_printf("MechaPwnable: yes\n");
+    }
+    else {
+        printf("MechaPwnable: no\n");
+        scr_printf("MechaPwnable: no\n");
+    }
+    if (is_protkrnl >= 0) {
+        printf("ProtoPwnable: yes\n");
+        scr_printf("ProtoPwnable: yes\n");
+        scr_printf("\n");
+        close(is_protkrnl);
+    }
+    else {
+        printf("ProtoPwnable: no\n");
+        scr_printf("ProtoPwnable: no\n");
+        scr_printf("\n");
+    }
+}
+void checkconsoletype(int version_num) {
+    if (romver_buf[4] == 'T') {
+        if (romver_buf[5] == 'Z') {
+            printf("Console Type: Arcade\n");
+            scr_printf("Console Type: Arcade\n");
+        }
+        else {
+            printf("Console Type: DEX (TOOL)\n");
+            scr_printf("Console Type: DEX (TOOL)\n");
+        }
+    }
+    else if (romver_buf[5] == 'D') {
+        printf("Console Type: DEX (TEST)\n");
+        scr_printf("Console Type: DEX (TEST)\n");
+    }
+    else if (version_num == 250) {
+        printf("Console Type: PS2 TV\n");
+        scr_printf("Console Type: PS2 TV\n");
+    }
+    else if (romver_buf[5] == 'C') {
+        printf("Console Type: Retail (CEX)\n");
+        scr_printf("Console Type: Retail (CEX)\n");
+    }
+    else {
+        printf("Console Type: Unknown\n");
+        scr_printf("Console Type: Unknown\n");
+    }
+}
 
 void reload_modules_withiopreset() {
     SifIopReset("", 0);
@@ -90,6 +155,30 @@ void loadextramodules() {
         printf("Failed to load ps2dev9.irx: %d\n", ret);
     }
 #endif
+    ret = SifExecModuleBuffer(netman_irx, size_netman_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load netman.irx: %d\n", ret);
+    }
+    ret = SifExecModuleBuffer(smap_irx, size_smap_irx, 0, NULL, NULL);
+    if (ret < 0) {
+        printf("Failed to load smap.irx: %d\n", ret);
+    }
+    FILE* fp = fopen("mc1:/SYS-CONF/IPCONFIG.DAT", "r");
+
+    if (!fp) fp = fopen("mc0:/SYS-CONF/IPCONFIG.DAT", "r");
+    if (fp) {
+        fscanf(fp, "%15s %15s %15s", ip, mask, gw);
+        fclose(fp);
+    }
+
+    strcpy(nt, ip);
+    strcpy(nt + 16, mask);
+    strcpy(nt + 32, gw);
+
+    ret = SifExecModuleBuffer(ps2ip_nm_irx, size_ps2ip_nm_irx, 48, nt, NULL);
+    if (ret < 0) {
+        printf("Failed to load ps2ip_nm.irx: %d\n", ret);
+    }
     ret = SifExecModuleBuffer(udptty_standalone_irx, size_udptty_standalone_irx, 0, NULL, NULL);
     if (ret < 0) {
         printf("Failed to load udptty_standalone.irx (err %d)\n", ret);
@@ -103,7 +192,9 @@ void loadextramodules() {
             printf("Failed to load ppctty.irx (err %d)\n", ret);
         }
     }
-
+    printf("waiting 5 seconds for network to be up\n");
+    scr_printf("waiting 5 seconds for network to be up");
+    sleep(5);
 }
 
 int main() {
@@ -208,39 +299,13 @@ int main() {
     int version_num = atoi(version_str);
     int bootelffound = open("mc0:/BOOT/BOOT.ELF", O_RDONLY);
     int fd;
-    int is_protkrnl = open("rom0:OSBROWS", O_RDONLY);
-
-    if (romver_buf[4] == 'T') {
-        if (romver_buf[5] == 'Z') {
-            printf("Console Type: Arcade\n");
-            scr_printf("Console Type: Arcade\n");
-        }
-        else {
-            printf("Console Type: DEX (TOOL)\n");
-            scr_printf("Console Type: DEX (TOOL)\n");
-        }
-    }
-    else if (romver_buf[5] == 'D') {
-        printf("Console Type: DEX (TEST)\n");
-        scr_printf("Console Type: DEX (TEST)\n");
-    }
-    else if (version_num == 250) {
-        printf("Console Type: PS2 TV\n");
-        scr_printf("Console Type: PS2 TV\n");
-    }
-    else if (romver_buf[5] == 'C') {
-        printf("Console Type: Retail (CEX)\n");
-        scr_printf("Console Type: Retail (CEX)\n");
-    }
-    else {
-        printf("Console Type: Unknown\n");
-        scr_printf("Console Type: Unknown\n");
-    }
     char* r = strchr("AECJT", romver_buf[4]);
+    int is_protkrnl = open("rom0:OSBROWS", O_RDONLY);
+    checkconsoletype(version_num);
     printf("Region: %s\n", r ? (r[0] == 'A' ? "America" : r[0] == 'E' ? "Europe" : r[0] == 'C' ? "China" : r[0] == 'J' ? "Japan" : "TOOL") : "Unknown");
     scr_printf("Region: %s\n", r ? (r[0] == 'A' ? "America" : r[0] == 'E' ? "Europe" : r[0] == 'C' ? "China" : r[0] == 'J' ? "Japan" : "TOOL") : "Unknown");
 
-#if ARCADE
+#ifdef ARCADE
     // stub due to Arcade not having a way to pull model
 #else
     ModelNameInit();
@@ -260,66 +325,58 @@ int main() {
         close(fd);
     }
     else {
-        fd = open("mc0:/SYS-CONF/FREEMCB.CNF", O_RDONLY);
+        fd = open("mc0:/SYS-CONF/PSXBBL.INI", O_RDONLY);
         if (fd < 0) {
-            fd = open("mc1:/SYS-CONF/FREEMCB.CNF", O_RDONLY);
+            fd = open("mc1:/SYS-CONF/PSXBBL.INI", O_RDONLY);
         }
 
-        if (fd >= 0) {  // FMCB
-            printf("FMCB installed: yes\n");
-            scr_printf("FMCB installed: yes\n");
-            close(fd);
-        }
-        fd = open("mc0:/BOOT/FREEMCB.CNF", O_RDONLY); // FunTuna?
-        if (fd < 0) {
-            fd = open("mc1:/BOOT/FREEMCB.CNF", O_RDONLY);
-        }
-        if (fd < 0) {
-            fd = open("mc0:/BOOT/FUNTUNA.CNF", O_RDONLY);
-            if (fd < 0) {
-                fd = open("mc1:/BOOT/FUNTUNA.CNF", O_RDONLY);
-        } 
-    }
-        if (fd >= 0) {
-            printf("FunTuna installed: yes\n");
-            scr_printf("FunTuna installed: yes\n");
+        if (fd >= 0) {  // PSXBBL
+            printf("PS2BBL (PSX) installed: yes\n");
+            scr_printf("PS2BBL (PSX) installed: yes\n");
             close(fd);
         }
         else {
-            printf("FunTuna installed: no\n");
-            scr_printf("FunTuna installed: no\n");
+            fd = open("mc0:/SYS-CONF/FREEMCB.CNF", O_RDONLY);
+            if (fd < 0) {
+            fd = open("mc1:/SYS-CONF/FREEMCB.CNF", O_RDONLY);
+            }
+            if (fd >= 0) {  // FMCB
+            printf("FMCB installed: yes\n");
+            scr_printf("FMCB installed: yes\n");
+            close(fd);
+            }
+            else {
+                fd = open("mc0:/BOOT/FREEMCB.CNF", O_RDONLY); // FunTuna?
+                if (fd < 0) {
+                fd = open("mc1:/BOOT/FREEMCB.CNF", O_RDONLY);
+                }
+                if (fd < 0) {
+                fd = open("mc0:/BOOT/FUNTUNA.CNF", O_RDONLY);
+                if (fd < 0) {
+                    fd = open("mc1:/BOOT/FUNTUNA.CNF", O_RDONLY);
+                }
+                }
+                if (fd >= 0) {
+                printf("FunTuna installed: yes\n");
+                scr_printf("FunTuna installed: yes\n");
+                close(fd);
+                }
+                else {
+                printf("FunTuna installed: no\n");
+                scr_printf("FunTuna installed: no\n");
+                }
         }
+        }
+        
+        
     }
-    
-    if (is_dex) {
-        printf("MechaPwnable: no\n");
-        scr_printf("MechaPwnable: no\n");
-    }
-    else if (version_num >= 170) {
-        printf("MechaPwnable: yes\n");
-        scr_printf("MechaPwnable: yes\n");
-    }
-    else {
-        printf("MechaPwnable: no\n");
-        scr_printf("MechaPwnable: no\n");
-    }
-    if (is_protkrnl >= 0) {
-        printf("ProtoPwnable: yes\n");
-        scr_printf("ProtoPwnable: yes\n");
-        scr_printf("\n");
-        close(is_protkrnl);
-    }
-    else {
-        printf("ProtoPwnable: no\n");
-        scr_printf("ProtoPwnable: no\n");
-        scr_printf("\n");
-    }
+    extrachecks(version_num, is_dex, is_protkrnl);
     // DESR check start //
     int psxver = open("rom0:PSXVER", O_RDONLY);
     if (psxver >= 0) {
         printf("DESR PS2: it is recommended to set LK_Auto_E1 to something like wLaunchELF or OPL\n");
-        scr_printf("DESR PS2: it is recommended to set LK_Auto_E1 to something like wLaunchELF\n");
-        scr_printf("or OPL\n");
+        scr_printf("DESR PS2: it is recommended to set LK_Auto_E1\n");
+        scr_printf("to something like wLaunchELF or OPL\n");
         close(psxver);
     }
     // DESR check end //
@@ -352,7 +409,7 @@ int main() {
             // bootrom patch check end //
         }
     }
-
+    
     //scr_printf("exiting to OSDSYS in 2 minutes\n");
     //sleep(120);
     //LoadELFFromFile("rom0:OSDSYS", 0, NULL);
@@ -367,43 +424,43 @@ int main() {
     struct padButtonStatus padinfo;
     printf("Press X to exit\n");
     scr_printf("Press X to exit\n");
-for (;;) {
-    size_t bytes_read = sio_read(buffer + total_read, sizeof(buffer) - total_read - 1);
-    if (bytes_read > 0) {
-        if (total_read + bytes_read >= sizeof(buffer)) {
-            bytes_read = sizeof(buffer) - total_read - 1;
-        }
-        total_read += bytes_read;
-        buffer[total_read] = '\0';
-
-        if (strstr(buffer, "help")) {
-            sio_puts("Commands:\nrecheck - runs checks again\nreset - exits to BOOT.ELF or OSDSYS\n");
-            total_read = 0;
-            memset(buffer, 0, sizeof(buffer));
-        }
-        if (strstr(buffer, "recheck")) {
-            total_read = 0;
-            memset(buffer, 0, sizeof(buffer));
-            scr_clear();
-            goto checks;
-        }
-        if (strstr(buffer, "reset")) {
-            if (bootelffound >= 0) {
-                close(bootelffound);
-                LoadELFFromFile("mc0:/BOOT/BOOT.ELF", 0, NULL);
+    for (;;) {
+        size_t bytes_read = sio_read(buffer + total_read, sizeof(buffer) - total_read - 1);
+        if (bytes_read > 0) {
+            if (total_read + bytes_read >= sizeof(buffer)) {
+                bytes_read = sizeof(buffer) - total_read - 1;
             }
-            else {
-                bootelffound = open("mc1:/BOOT/BOOT.ELF", O_RDONLY);
+            total_read += bytes_read;
+            buffer[total_read] = '\0';
+
+            if (strstr(buffer, "help")) {
+                sio_puts("Commands:\nrecheck - runs checks again\nreset - exits to BOOT.ELF or OSDSYS\n");
+                total_read = 0;
+                memset(buffer, 0, sizeof(buffer));
+            }
+            if (strstr(buffer, "recheck")) {
+                total_read = 0;
+                memset(buffer, 0, sizeof(buffer));
+                scr_clear();
+                goto checks;
+            }
+            if (strstr(buffer, "reset")) {
                 if (bootelffound >= 0) {
                     close(bootelffound);
-                    LoadELFFromFile("mc1:/BOOT/BOOT.ELF", 0, NULL);
+                    LoadELFFromFile("mc0:/BOOT/BOOT.ELF", 0, NULL);
                 }
                 else {
-                    LoadELFFromFile("rom0:OSDSYS", 0, NULL);
+                    bootelffound = open("mc1:/BOOT/BOOT.ELF", O_RDONLY);
+                    if (bootelffound >= 0) {
+                        close(bootelffound);
+                        LoadELFFromFile("mc1:/BOOT/BOOT.ELF", 0, NULL);
+                    }
+                    else {
+                        LoadELFFromFile("rom0:OSDSYS", 0, NULL);
+                    }
                 }
             }
         }
-    }
         for (int port = 0; port < 2; port++) {
             if (padGetState(port, 0) == PAD_STATE_STABLE) {
                 if (padRead(port, 0, &padinfo) > 0) {
@@ -431,3 +488,5 @@ for (;;) {
     }
     return 0;
 }
+
+
